@@ -4,310 +4,318 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Polarsteps Finance Dashboard</title>
-  <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
-  <script src="https://unpkg.com/recharts@2.8.0/umd/Recharts.js"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.23.2/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0f172a; color: #f1f5f9; font-family: system-ui, -apple-system, sans-serif; }
-    #root { padding: 24px; }
-    .spinner { display: flex; align-items: center; justify-content: center; height: 100vh; font-size: 16px; color: #64748b; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0f172a; color: #f1f5f9; font-family: system-ui, -apple-system, sans-serif; padding: 24px; }
+    h1  { font-size: 22px; font-weight: 700; color: #f8fafc; }
+    .sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+    .badge { background: #1e293b; border: 1px solid #334155; border-radius: 20px; padding: 4px 14px; font-size: 11px; color: #94a3b8; }
+    .section-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid #1e293b; padding-bottom: 8px; margin-bottom: 12px; margin-top: 24px; }
+    .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .kpi  { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 14px 16px; }
+    .kpi-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+    .kpi-value { font-size: 20px; font-weight: 700; }
+    .kpi-sub   { font-size: 10px; color: #64748b; margin-top: 4px; }
+    .green  { color: #34d399; }
+    .red    { color: #f87171; }
+    .blue   { color: #93c5fd; }
+    .card   { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin-bottom: 0; }
+    .card-title { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+    canvas  { max-height: 220px; }
+    .toggles { display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 12px; }
+    .toggle-btn { background: #334155; color: white; border: none; border-radius: 20px; padding: 4px 14px; font-size: 11px; cursor: pointer; font-weight: 500; }
+    .toggle-btn.active { background: #6366f1; }
+    .spinner { display: flex; align-items: center; justify-content: center; height: 80vh; font-size: 16px; color: #64748b; }
+    .error   { color: #f87171; text-align: center; padding: 40px; }
+    #app { display: none; }
+    footer { text-align: center; color: #334155; font-size: 11px; margin-top: 24px; padding-bottom: 12px; }
+    @media (max-width: 700px) {
+      .grid4 { grid-template-columns: repeat(2, 1fr); }
+      .grid2 { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-  <div id="root"><div class="spinner">Loading dashboard…</div></div>
 
-  <script type="text/babel">
-    // ── CONFIG — update this URL if you redeploy the Apps Script ──────────────
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTnX4QmZoKkr541iYtVpTsnxRwySuuY2wkzXRCGsjVNzGGoYcofyPg6bx0TRwjo7NyXw/exec";
-    const SECRET_KEY = "polarsteps-finance-2026";
+<div id="loading" class="spinner">Loading dashboard data…</div>
+<div id="error-msg" class="error" style="display:none"></div>
 
-    const { useState, useEffect } = React;
-    const {
-      LineChart, Line, BarChart, Bar, XAxis, YAxis,
-      CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-      ReferenceLine, Cell
-    } = Recharts;
+<div id="app">
+  <div class="header">
+    <div>
+      <h1>Polarsteps Finance Dashboard</h1>
+      <div class="sub">YTD 2026 · Live from Monthly Finance Template</div>
+    </div>
+    <div class="badge" id="badge">2026</div>
+  </div>
 
-    // ── FORMATTERS ────────────────────────────────────────────────────────────
-    const fmt = (val) => {
-      if (val === null || val === undefined) return "—";
-      const abs = Math.abs(val);
-      const sign = val < 0 ? "-" : "";
-      if (abs >= 1_000_000) return `${sign}€${(abs/1_000_000).toFixed(2)}M`;
-      if (abs >= 1_000)     return `${sign}€${(abs/1_000).toFixed(1)}K`;
-      return `${sign}€${abs.toLocaleString()}`;
-    };
+  <!-- KPIs -->
+  <div class="section-label">Key Metrics</div>
+  <div class="grid4">
+    <div class="kpi"><div class="kpi-label">YTD TB Revenue</div><div class="kpi-value" id="k-ytd-rev">—</div><div class="kpi-sub" id="k-ytd-rev-sub"></div></div>
+    <div class="kpi"><div class="kpi-label">YTD Net P&amp;L</div><div class="kpi-value" id="k-pl">—</div><div class="kpi-sub" id="k-pl-sub"></div></div>
+    <div class="kpi"><div class="kpi-label" id="k-cash-label">Cash in Bank</div><div class="kpi-value blue" id="k-cash">—</div><div class="kpi-sub">End of month</div></div>
+    <div class="kpi"><div class="kpi-label" id="k-mau-label">MAUs</div><div class="kpi-value green" id="k-mau">—</div><div class="kpi-sub">Monthly active users</div></div>
+  </div>
+  <div class="grid4">
+    <div class="kpi"><div class="kpi-label" id="k-gm-label">Gross Margin</div><div class="kpi-value green" id="k-gm">—</div><div class="kpi-sub">Revenue after COGS</div></div>
+    <div class="kpi"><div class="kpi-label" id="k-conv-label">TB Conversion</div><div class="kpi-value blue" id="k-conv">—</div><div class="kpi-sub">Trips → purchase</div></div>
+    <div class="kpi"><div class="kpi-label" id="k-orders-label">Total Orders</div><div class="kpi-value blue" id="k-orders">—</div><div class="kpi-sub">Travel books sold</div></div>
+    <div class="kpi"><div class="kpi-label" id="k-aov-label">Sales AOV</div><div class="kpi-value green" id="k-aov">—</div><div class="kpi-sub">Avg order value</div></div>
+  </div>
 
-    const fmtNum = (val) => {
-      if (val === null || val === undefined) return "—";
-      if (val >= 1_000_000) return (val/1_000_000).toFixed(2) + "M";
-      if (val >= 1_000)     return (val/1_000).toFixed(1) + "K";
-      return val.toLocaleString();
-    };
+  <!-- Revenue -->
+  <div class="section-label">TB Revenue — Actual vs Forecast vs Prior Year</div>
+  <div class="card"><canvas id="chart-revenue"></canvas></div>
 
-    // ── TOOLTIP ───────────────────────────────────────────────────────────────
-    function CustomTooltip({ active, payload, label }) {
-      if (!active || !payload?.length) return null;
-      return (
-        <div style={{ background:"#0f172a", border:"1px solid #475569", borderRadius:8, padding:"10px 14px", fontSize:11 }}>
-          <p style={{ color:"#cbd5e1", fontWeight:600, marginBottom:4 }}>{label}</p>
-          {payload.map((p, i) => (
-            <p key={i} style={{ color:p.color, margin:"2px 0" }}>
-              {p.name}: {typeof p.value === "number" && p.name.toLowerCase().includes("rate") ? p.value + "%" : fmt(p.value)}
-            </p>
-          ))}
-        </div>
-      );
+  <!-- P&L + Cash -->
+  <div class="section-label">P&amp;L and Cash</div>
+  <div class="grid2">
+    <div class="card"><div class="card-title">Monthly Net P&amp;L</div><canvas id="chart-pl"></canvas></div>
+    <div class="card"><div class="card-title">Cash in Bank (End of Month)</div><canvas id="chart-cash"></canvas></div>
+  </div>
+
+  <!-- COGS + Opex -->
+  <div class="section-label">Cost Breakdown</div>
+  <div class="grid2">
+    <div class="card"><div class="card-title">COGS Breakdown</div><canvas id="chart-cogs"></canvas></div>
+    <div class="card"><div class="card-title">Opex Breakdown</div><canvas id="chart-opex"></canvas></div>
+  </div>
+
+  <!-- MAU -->
+  <div class="section-label">User &amp; Product Metrics</div>
+  <div class="card"><canvas id="chart-mau"></canvas></div>
+
+  <!-- Country -->
+  <div class="section-label">Sales by Country (incl. VAT)</div>
+  <div class="card">
+    <div class="toggles" id="country-toggles"></div>
+    <canvas id="chart-country"></canvas>
+  </div>
+
+  <footer>Live data from Polarsteps Monthly Finance Template · Auto-updates when the Sheet is edited</footer>
+</div>
+
+<script>
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTnX4QmZoKkr541iYtVpTsnxRwySuuY2wkzXRCGsjVNzGGoYcofyPg6bx0TRwjo7NyXw/exec";
+  const SECRET_KEY = "polarsteps-finance-2026";
+
+  const fmt = (v) => {
+    if (v === null || v === undefined) return "—";
+    const a = Math.abs(v), s = v < 0 ? "-" : "";
+    if (a >= 1e6) return s + "€" + (a/1e6).toFixed(2) + "M";
+    if (a >= 1e3) return s + "€" + (a/1e3).toFixed(1) + "K";
+    return s + "€" + a.toLocaleString();
+  };
+
+  const fmtNum = (v) => {
+    if (!v) return "—";
+    if (v >= 1e6) return (v/1e6).toFixed(2) + "M";
+    if (v >= 1e3) return (v/1e3).toFixed(1) + "K";
+    return v.toLocaleString();
+  };
+
+  const GRID  = "#334155";
+  const TICK  = "#94a3b8";
+  const defaults = {
+    color: TICK,
+    plugins: { legend: { labels: { color: TICK, font: { size: 11 } } } },
+    scales: {
+      x: { grid: { color: GRID }, ticks: { color: TICK, font: { size: 11 } } },
+      y: { grid: { color: GRID }, ticks: { color: TICK, font: { size: 10 } } }
     }
+  };
 
-    // ── KPI CARD ──────────────────────────────────────────────────────────────
-    function KpiCard({ title, value, sub, positive, neutral }) {
-      const color = neutral ? "#93c5fd" : positive ? "#34d399" : "#f87171";
-      return (
-        <div style={{ background:"#1e293b", border:"1px solid #334155", borderRadius:12, padding:"14px 16px" }}>
-          <div style={{ fontSize:10, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:6 }}>{title}</div>
-          <div style={{ fontSize:20, fontWeight:700, color }}>{value}</div>
-          {sub && <div style={{ fontSize:10, color:"#64748b", marginTop:4 }}>{sub}</div>}
-        </div>
-      );
-    }
+  function moneyScale(axis) {
+    return { ...axis, ticks: { ...axis.ticks, callback: v => fmt(v) } };
+  }
 
-    // ── SECTION ───────────────────────────────────────────────────────────────
-    function Section({ title, children }) {
-      return (
-        <div style={{ marginBottom:20 }}>
-          <div style={{ fontSize:11, fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", borderBottom:"1px solid #1e293b", paddingBottom:8, marginBottom:12 }}>
-            {title}
-          </div>
-          {children}
-        </div>
-      );
-    }
+  let countryChart = null;
+  let countryData  = [];
+  let activeMonth  = "";
 
-    // ── CARD ──────────────────────────────────────────────────────────────────
-    function Card({ children, title }) {
-      return (
-        <div style={{ background:"#1e293b", border:"1px solid #334155", borderRadius:12, padding:16 }}>
-          {title && <div style={{ fontSize:11, fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:12 }}>{title}</div>}
-          {children}
-        </div>
-      );
-    }
+  function renderCountry(month) {
+    activeMonth = month;
+    document.querySelectorAll(".toggle-btn").forEach(b => {
+      b.classList.toggle("active", b.dataset.m === month);
+    });
+    const rows = [...countryData]
+      .map(c => ({ label: c.country, value: c[month] }))
+      .filter(c => c.value !== null)
+      .sort((a, b) => b.value - a.value);
 
-    // ── DASHBOARD ─────────────────────────────────────────────────────────────
-    function Dashboard() {
-      const [data, setData] = useState(null);
-      const [error, setError] = useState(null);
-      const [loading, setLoading] = useState(true);
-      const [activeMonth, setActiveMonth] = useState(null);
+    if (countryChart) countryChart.destroy();
+    countryChart = new Chart(document.getElementById("chart-country"), {
+      type: "bar",
+      data: {
+        labels: rows.map(r => r.label),
+        datasets: [{ label: "Sales", data: rows.map(r => r.value), backgroundColor: "#6366f1", borderRadius: 4 }]
+      },
+      options: {
+        indexAxis: "y",
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: GRID }, ticks: { color: TICK, callback: v => fmt(v), font: { size: 10 } } },
+          y: { grid: { color: GRID }, ticks: { color: TICK, font: { size: 11 } } }
+        }
+      }
+    });
+  }
 
-      useEffect(() => {
-        const url = `${APPS_SCRIPT_URL}?key=${SECRET_KEY}&action=getDashboardData`;
-        fetch(url, { redirect: "follow" })
-          .then(r => r.json())
-          .then(d => {
-            if (d.error) throw new Error(d.error);
-            setData(d);
-            // default country toggle to last filled month
-            if (d.kpis?.lastMonth) setActiveMonth(d.kpis.lastMonth.toLowerCase());
-            setLoading(false);
-          })
-          .catch(err => {
-            setError(err.message);
-            setLoading(false);
-          });
-      }, []);
+  function build(data) {
+    const { revenue, pl, mau, cogs, opex, countries, kpis } = data;
+    countryData = countries;
 
-      if (loading) return <div className="spinner">Loading dashboard data…</div>;
-      if (error)   return <div className="spinner" style={{ color:"#f87171" }}>Error: {error}<br/><small>Check the Apps Script URL and key.</small></div>;
+    // Badge
+    document.getElementById("badge").textContent = kpis.lastMonth + " 2026";
 
-      const { revenue, pl, mau, cogs, opex, countries, kpis, months } = data;
+    // KPIs
+    const vsFC = kpis.ytdForecast ? ((kpis.ytdRevenue / kpis.ytdForecast - 1) * 100).toFixed(1) : null;
+    document.getElementById("k-ytd-rev").textContent = fmt(kpis.ytdRevenue);
+    document.getElementById("k-ytd-rev").className   = "kpi-value " + (kpis.ytdRevenue >= kpis.ytdForecast ? "green" : "red");
+    document.getElementById("k-ytd-rev-sub").textContent = vsFC ? `vs forecast ${fmt(kpis.ytdForecast)} (${vsFC}%)` : fmt(kpis.ytdForecast);
 
-      const countryMonthData = [...countries]
-        .map(c => ({ country: c.country, value: c[activeMonth] }))
-        .filter(c => c.value !== null)
-        .sort((a, b) => b.value - a.value);
+    document.getElementById("k-pl").textContent  = fmt(kpis.ytdPL);
+    document.getElementById("k-pl").className    = "kpi-value " + (kpis.ytdPL >= 0 ? "green" : "red");
+    document.getElementById("k-pl-sub").textContent = `Jan–${kpis.lastMonth} combined`;
 
-      const gmPct = kpis.latestGM !== null
-        ? (kpis.latestGM < 1 ? (kpis.latestGM * 100).toFixed(0) + "%" : kpis.latestGM.toFixed(0) + "%")
-        : "—";
+    document.getElementById("k-cash-label").textContent   = `Cash in Bank (${kpis.lastMonth})`;
+    document.getElementById("k-cash").textContent         = fmt(kpis.latestCash);
+    document.getElementById("k-mau-label").textContent    = `MAUs (${kpis.lastMonth})`;
+    document.getElementById("k-mau").textContent          = fmtNum(kpis.latestMAU);
+    document.getElementById("k-gm-label").textContent     = `Gross Margin (${kpis.lastMonth})`;
+    const gm = kpis.latestGM !== null ? (kpis.latestGM < 1 ? (kpis.latestGM*100).toFixed(0) : kpis.latestGM.toFixed(0)) + "%" : "—";
+    document.getElementById("k-gm").textContent           = gm;
+    document.getElementById("k-conv-label").textContent   = `TB Conversion (${kpis.lastMonth})`;
+    document.getElementById("k-conv").textContent         = kpis.latestConv !== null ? kpis.latestConv + "%" : "—";
+    document.getElementById("k-orders-label").textContent = `Total Orders (${kpis.lastMonth})`;
+    document.getElementById("k-orders").textContent       = kpis.latestOrders ? kpis.latestOrders.toLocaleString() : "—";
+    document.getElementById("k-aov-label").textContent    = `Sales AOV (${kpis.lastMonth})`;
+    document.getElementById("k-aov").textContent          = fmt(kpis.latestAOV);
 
-      const convPct = kpis.latestConv !== null ? kpis.latestConv + "%" : "—";
-      const vsFC = kpis.ytdForecast ? ((kpis.ytdRevenue / kpis.ytdForecast - 1) * 100).toFixed(1) : null;
+    // Revenue chart
+    new Chart(document.getElementById("chart-revenue"), {
+      type: "line",
+      data: {
+        labels: revenue.map(d => d.month),
+        datasets: [
+          { label: "Actual",     data: revenue.map(d => d.actual),   borderColor: "#6366f1", backgroundColor: "transparent", borderWidth: 2.5, pointRadius: 4, spanGaps: false },
+          { label: "Forecast",   data: revenue.map(d => d.forecast), borderColor: "#a5b4fc", backgroundColor: "transparent", borderWidth: 1.5, borderDash: [5,5], pointRadius: 0 },
+          { label: "Prior Year", data: revenue.map(d => d.prior),    borderColor: "#475569", backgroundColor: "transparent", borderWidth: 1.5, borderDash: [3,3], pointRadius: 0 }
+        ]
+      },
+      options: { ...defaults, scales: { x: defaults.scales.x, y: moneyScale(defaults.scales.y) } }
+    });
 
-      return (
-        <div style={{ maxWidth:1200, margin:"0 auto" }}>
-          {/* Header */}
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24 }}>
-            <div>
-              <h1 style={{ fontSize:22, fontWeight:700, color:"#f8fafc" }}>Polarsteps Finance Dashboard</h1>
-              <p style={{ fontSize:12, color:"#64748b", marginTop:4 }}>
-                YTD 2026 · Jan–{kpis.lastMonth} actuals · Monthly Finance Template
-              </p>
-            </div>
-            <span style={{ background:"#1e293b", border:"1px solid #334155", borderRadius:20, padding:"4px 14px", fontSize:11, color:"#94a3b8" }}>
-              {kpis.lastMonth} 2026
-            </span>
-          </div>
+    // P&L chart
+    new Chart(document.getElementById("chart-pl"), {
+      type: "bar",
+      data: {
+        labels: pl.map(d => d.month),
+        datasets: [{
+          label: "Net P&L",
+          data: pl.map(d => d.pl),
+          backgroundColor: pl.map(d => d.pl >= 0 ? "#10b981" : "#f43f5e"),
+          borderRadius: 4
+        }]
+      },
+      options: { plugins: { legend: { display: false } }, scales: { x: defaults.scales.x, y: moneyScale(defaults.scales.y) } }
+    });
 
-          {/* KPIs */}
-          <Section title="Key Metrics">
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:12, marginBottom:12 }}>
-              <KpiCard title="YTD TB Revenue" value={fmt(kpis.ytdRevenue)}
-                sub={vsFC ? `vs forecast ${fmt(kpis.ytdForecast)} (${vsFC}%)` : `Forecast: ${fmt(kpis.ytdForecast)}`}
-                positive={kpis.ytdRevenue >= kpis.ytdForecast} />
-              <KpiCard title="YTD Net P&L" value={fmt(kpis.ytdPL)} sub={`Jan–${kpis.lastMonth} combined`} positive={kpis.ytdPL > 0} />
-              <KpiCard title={`Cash in Bank (${kpis.lastMonth})`} value={fmt(kpis.latestCash)} sub="End of month" neutral />
-              <KpiCard title={`MAUs (${kpis.lastMonth})`} value={fmtNum(kpis.latestMAU)} sub="Monthly active users" positive />
-            </div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:12 }}>
-              <KpiCard title={`Gross Margin (${kpis.lastMonth})`} value={gmPct} sub="Revenue after COGS" positive />
-              <KpiCard title={`TB Conversion (${kpis.lastMonth})`} value={convPct} sub="Trips → purchase" neutral />
-              <KpiCard title={`Total Orders (${kpis.lastMonth})`} value={kpis.latestOrders ? kpis.latestOrders.toLocaleString() : "—"} sub="Travel books sold" neutral />
-              <KpiCard title={`Sales AOV (${kpis.lastMonth})`} value={fmt(kpis.latestAOV)} sub="Avg order value" positive={kpis.latestAOV > 120} />
-            </div>
-          </Section>
+    // Cash chart
+    new Chart(document.getElementById("chart-cash"), {
+      type: "line",
+      data: {
+        labels: pl.map(d => d.month),
+        datasets: [{ label: "Cash in Bank", data: pl.map(d => d.cash), borderColor: "#0ea5e9", backgroundColor: "transparent", borderWidth: 2.5, pointRadius: 5 }]
+      },
+      options: { plugins: { legend: { display: false } }, scales: { x: defaults.scales.x, y: moneyScale(defaults.scales.y) } }
+    });
 
-          {/* Revenue Chart */}
-          <Section title="TB Revenue — Actual vs Forecast vs Prior Year">
-            <Card>
-              <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={revenue}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="month" tick={{ fill:"#94a3b8", fontSize:11 }} />
-                  <YAxis tickFormatter={v => fmt(v)} tick={{ fill:"#94a3b8", fontSize:10 }} width={78} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend wrapperStyle={{ fontSize:11, color:"#94a3b8" }} />
-                  <ReferenceLine x={kpis.lastMonth} stroke="#475569" strokeDasharray="4 4" />
-                  <Line type="monotone" dataKey="actual" name="Actual" stroke="#6366f1" strokeWidth={2.5} dot={{ r:4, fill:"#6366f1" }} connectNulls={false} />
-                  <Line type="monotone" dataKey="forecast" name="Forecast" stroke="#a5b4fc" strokeWidth={1.5} strokeDasharray="5 5" dot={false} />
-                  <Line type="monotone" dataKey="prior" name="Prior Year" stroke="#475569" strokeWidth={1.5} strokeDasharray="3 3" dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card>
-          </Section>
+    // COGS chart
+    new Chart(document.getElementById("chart-cogs"), {
+      type: "bar",
+      data: {
+        labels: cogs.map(d => d.month),
+        datasets: [
+          { label: "Printing", data: cogs.map(d => d.printing), backgroundColor: "#818cf8", stack: "cogs" },
+          { label: "Shipping", data: cogs.map(d => d.shipping), backgroundColor: "#6366f1", stack: "cogs" },
+          { label: "Stripe",   data: cogs.map(d => d.stripe),   backgroundColor: "#4338ca", stack: "cogs" }
+        ]
+      },
+      options: { ...defaults, scales: { x: defaults.scales.x, y: moneyScale(defaults.scales.y) } }
+    });
 
-          {/* P&L + Cash */}
-          <Section title="P&L and Cash">
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-              <Card title="Monthly Net P&L">
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={pl}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="month" tick={{ fill:"#94a3b8", fontSize:11 }} />
-                    <YAxis tickFormatter={v => fmt(v)} tick={{ fill:"#94a3b8", fontSize:10 }} width={78} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <ReferenceLine y={0} stroke="#475569" />
-                    <Bar dataKey="pl" name="Net P&L" radius={[4,4,0,0]}>
-                      {pl.map((d, i) => <Cell key={i} fill={d.pl >= 0 ? "#10b981" : "#f43f5e"} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </Card>
-              <Card title="Cash in Bank (End of Month)">
-                <ResponsiveContainer width="100%" height={180}>
-                  <LineChart data={pl}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="month" tick={{ fill:"#94a3b8", fontSize:11 }} />
-                    <YAxis tickFormatter={v => fmt(v)} tick={{ fill:"#94a3b8", fontSize:10 }} width={78} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Line type="monotone" dataKey="cash" name="Cash in Bank" stroke="#0ea5e9" strokeWidth={2.5} dot={{ r:5, fill:"#0ea5e9" }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </Card>
-            </div>
-          </Section>
+    // Opex chart
+    new Chart(document.getElementById("chart-opex"), {
+      type: "bar",
+      data: {
+        labels: opex.map(d => d.month),
+        datasets: [
+          { label: "Payroll",   data: opex.map(d => d.payroll),   backgroundColor: "#f472b6", stack: "opex" },
+          { label: "Infra",     data: opex.map(d => d.infra),     backgroundColor: "#e879f9", stack: "opex" },
+          { label: "Marketing", data: opex.map(d => d.marketing), backgroundColor: "#c026d3", stack: "opex" },
+          { label: "Other",     data: opex.map(d => d.other),     backgroundColor: "#86198f", stack: "opex" }
+        ]
+      },
+      options: { ...defaults, scales: { x: defaults.scales.x, y: moneyScale(defaults.scales.y) } }
+    });
 
-          {/* COGS + Opex */}
-          <Section title="Cost Breakdown">
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-              <Card title="COGS Breakdown">
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={cogs}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="month" tick={{ fill:"#94a3b8", fontSize:11 }} />
-                    <YAxis tickFormatter={v => fmt(v)} tick={{ fill:"#94a3b8", fontSize:10 }} width={78} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize:10, color:"#94a3b8" }} />
-                    <Bar dataKey="printing" name="Printing" stackId="a" fill="#818cf8" />
-                    <Bar dataKey="shipping" name="Shipping" stackId="a" fill="#6366f1" />
-                    <Bar dataKey="stripe"   name="Stripe"   stackId="a" fill="#4338ca" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Card>
-              <Card title="Opex Breakdown">
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={opex}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="month" tick={{ fill:"#94a3b8", fontSize:11 }} />
-                    <YAxis tickFormatter={v => fmt(v)} tick={{ fill:"#94a3b8", fontSize:10 }} width={78} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize:10, color:"#94a3b8" }} />
-                    <Bar dataKey="payroll"   name="Payroll"   stackId="a" fill="#f472b6" />
-                    <Bar dataKey="infra"     name="Infra"     stackId="a" fill="#e879f9" />
-                    <Bar dataKey="marketing" name="Marketing" stackId="a" fill="#c026d3" />
-                    <Bar dataKey="other"     name="Other"     stackId="a" fill="#86198f" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Card>
-            </div>
-          </Section>
+    // MAU chart
+    new Chart(document.getElementById("chart-mau"), {
+      type: "line",
+      data: {
+        labels: mau.map(d => d.month),
+        datasets: [
+          { label: "MAUs",          data: mau.map(d => d.mau),   borderColor: "#38bdf8", backgroundColor: "transparent", borderWidth: 2.5, pointRadius: 4, yAxisID: "y" },
+          { label: "Quality Trips", data: mau.map(d => d.trips), borderColor: "#34d399", backgroundColor: "transparent", borderWidth: 2,   pointRadius: 4, yAxisID: "y2" }
+        ]
+      },
+      options: {
+        ...defaults,
+        scales: {
+          x:  defaults.scales.x,
+          y:  { ...defaults.scales.y, ticks: { ...defaults.scales.y.ticks, callback: v => (v/1e6).toFixed(2)+"M" }, position: "left" },
+          y2: { ...defaults.scales.y, ticks: { ...defaults.scales.y.ticks, callback: v => v.toLocaleString() },     position: "right", grid: { display: false } }
+        }
+      }
+    });
 
-          {/* User Metrics */}
-          <Section title="User & Product Metrics">
-            <Card>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={mau}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="month" tick={{ fill:"#94a3b8", fontSize:11 }} />
-                  <YAxis yAxisId="left"  tickFormatter={v => (v/1_000_000).toFixed(2)+"M"} tick={{ fill:"#94a3b8", fontSize:10 }} width={60} />
-                  <YAxis yAxisId="right" orientation="right" tickFormatter={v => v.toLocaleString()} tick={{ fill:"#94a3b8", fontSize:10 }} width={70} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend wrapperStyle={{ fontSize:11, color:"#94a3b8" }} />
-                  <Line yAxisId="left"  type="monotone" dataKey="mau"   name="MAUs"          stroke="#38bdf8" strokeWidth={2.5} dot={{ r:4, fill:"#38bdf8" }} />
-                  <Line yAxisId="right" type="monotone" dataKey="trips" name="Quality Trips" stroke="#34d399" strokeWidth={2}   dot={{ r:4, fill:"#34d399" }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card>
-          </Section>
+    // Country toggles
+    const filledMonths = pl.map(d => d.month);
+    const toggles = document.getElementById("country-toggles");
+    filledMonths.forEach(m => {
+      const btn = document.createElement("button");
+      btn.className = "toggle-btn";
+      btn.dataset.m = m.toLowerCase();
+      btn.textContent = m;
+      btn.onclick = () => renderCountry(m.toLowerCase());
+      toggles.appendChild(btn);
+    });
+    renderCountry(filledMonths[filledMonths.length - 1].toLowerCase());
 
-          {/* Country */}
-          <Section title="Sales by Country (incl. VAT)">
-            <Card>
-              <div style={{ display:"flex", justifyContent:"flex-end", gap:8, marginBottom:12 }}>
-                {pl.map(d => d.month.toLowerCase()).map(m => (
-                  <button key={m} onClick={() => setActiveMonth(m)} style={{
-                    background: activeMonth === m ? "#6366f1" : "#334155",
-                    color:"white", border:"none", borderRadius:20,
-                    padding:"4px 14px", fontSize:11, cursor:"pointer", fontWeight:500
-                  }}>
-                    {m.charAt(0).toUpperCase() + m.slice(1)}
-                  </button>
-                ))}
-              </div>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={countryMonthData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
-                  <XAxis type="number" tickFormatter={v => fmt(v)} tick={{ fill:"#94a3b8", fontSize:10 }} />
-                  <YAxis type="category" dataKey="country" tick={{ fill:"#94a3b8", fontSize:11 }} width={35} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="value" name="Sales" fill="#6366f1" radius={[0,4,4,0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          </Section>
+    // Show app
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("app").style.display = "block";
+  }
 
-          <p style={{ textAlign:"center", color:"#1e293b", fontSize:11, marginTop:8, paddingBottom:24 }}>
-            Live data from Polarsteps Monthly Finance Template · Auto-updates when the Sheet is edited
-          </p>
-        </div>
-      );
-    }
-
-    ReactDOM.createRoot(document.getElementById("root")).render(<Dashboard />);
-  </script>
+  // Fetch data
+  const url = `${APPS_SCRIPT_URL}?key=${SECRET_KEY}&action=getDashboardData`;
+  fetch(url, { redirect: "follow" })
+    .then(r => r.json())
+    .then(d => {
+      if (d.error) throw new Error(d.error);
+      build(d);
+    })
+    .catch(err => {
+      document.getElementById("loading").style.display = "none";
+      const el = document.getElementById("error-msg");
+      el.style.display = "block";
+      el.innerHTML = `<p>Could not load data: <strong>${err.message}</strong></p><p style="margin-top:8px;font-size:12px;color:#64748b">Check the Apps Script URL and deployment settings.</p>`;
+    });
+</script>
 </body>
 </html>
